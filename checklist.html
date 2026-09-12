@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>テスト実施ノート ー Test Run Notes</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --panel: #ffffff;
+    --border: #dde1e6;
+    --text: #1f2430;
+    --text-sub: #6b7280;
+    --accent: #2563eb;
+    --ok: #15803d;
+    --ok-bg: #e8f7ee;
+    --ng: #b91c1c;
+    --ng-bg: #fdeaea;
+    --skip: #92400e;
+    --skip-bg: #fdf2e0;
+    --pending-bg: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Hiragino Kaku Gothic ProN", "Yu Gothic", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+  }
+  h1 {
+    font-size: 16px;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  h1 .subtitle {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-sub);
+    letter-spacing: 0.02em;
+  }
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+  .toolbar .group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  label {
+    font-size: 13px;
+    color: var(--text-sub);
+  }
+  button {
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: var(--panel);
+    cursor: pointer;
+    color: var(--text);
+  }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+  button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  button:not(:disabled):hover {
+    filter: brightness(0.97);
+  }
+  input[type="text"], input[type="date"] {
+    font-size: 13px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+  }
+  #nameInput { width: 140px; }
+  .filename {
+    font-size: 12px;
+    color: var(--text-sub);
+  }
+  .stats {
+    display: none;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .stats.visible { display: flex; }
+  .stat-item {
+    font-size: 12.5px;
+    color: var(--text-sub);
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+  }
+  .stat-item .num {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .stat-item.stat-ok .num { color: var(--ok); }
+  .stat-item.stat-ng .num { color: var(--ng); }
+  .stat-item.stat-skip .num { color: var(--skip); }
+  .stat-item.stat-pending .num { color: var(--text-sub); }
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .empty-state {
+    text-align: center;
+    color: var(--text-sub);
+    padding: 80px 20px;
+    font-size: 14px;
+  }
+  section.checklist-section {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  section.checklist-section h2 {
+    font-size: 14px;
+    margin: 0;
+    padding: 12px 16px;
+    background: #fafbfc;
+    border-bottom: 1px solid var(--border);
+  }
+  .item-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 10px 14px;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .item-row:last-child { border-bottom: none; }
+  .item-row.result-OK { background: var(--ok-bg); }
+  .item-row.result-NG { background: var(--ng-bg); }
+  .item-row.result-SKIP { background: var(--skip-bg); }
+  .item-name {
+    font-size: 13.5px;
+    word-break: break-word;
+  }
+  .radio-group {
+    display: flex;
+    gap: 10px;
+    font-size: 12.5px;
+    white-space: nowrap;
+  }
+  .radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    cursor: pointer;
+    color: var(--text);
+  }
+  .radio-group input { cursor: pointer; }
+  .meta-fields {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .meta-fields input[type="text"].assignee { width: 90px; }
+  .meta-fields input[type="date"] { width: 138px; }
+  .note-field {
+    grid-column: 1 / -1;
+  }
+  .note-field input[type="text"] {
+    width: 100%;
+  }
+  @media (max-width: 720px) {
+    .item-row { grid-template-columns: 1fr; }
+  }
+  #fileInput { display: none; }
+  .hint {
+    font-size: 12px;
+    color: var(--text-sub);
+    margin-top: 4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>テスト実施ノート<span class="subtitle">Test Run Notes</span></h1>
+  <div class="toolbar">
+    <div class="group">
+      <button id="loadBtn">mdファイルを選択</button>
+      <input type="file" id="fileInput" accept=".md,.markdown,text/markdown">
+      <span class="filename" id="fileNameLabel">ファイル未選択</span>
+    </div>
+    <div class="group">
+      <label for="nameInput">実施者名(共通)</label>
+      <input type="text" id="nameInput" placeholder="例: 三木">
+      <button id="applyNameBtn" title="現在の実施者名を全項目の未入力欄に反映します">全項目に適用</button>
+    </div>
+    <div class="group">
+      <label for="dateInput">実施日(共通)</label>
+      <input type="date" id="dateInput">
+      <button id="applyDateBtn" title="現在の実施日を全項目の未入力欄に反映します">全項目に適用</button>
+    </div>
+    <div class="group">
+      <button id="exportBtn" class="primary" disabled>結果をエクスポート</button>
+    </div>
+  </div>
+  <div class="stats" id="statsBar">
+    <div class="stat-item"><span class="num" id="statTotal">0</span><span>全体</span></div>
+    <div class="stat-item stat-pending"><span class="num" id="statPending">0</span><span>未実施</span></div>
+    <div class="stat-item"><span class="num" id="statDone">0</span><span>実施済み</span></div>
+    <div class="stat-item stat-ok"><span class="num" id="statOk">0</span><span>OK</span></div>
+    <div class="stat-item stat-ng"><span class="num" id="statNg">0</span><span>NG</span></div>
+    <div class="stat-item stat-skip"><span class="num" id="statSkip">0</span><span>スキップ</span></div>
+  </div>
+</header>
+
+<main id="main">
+  <div class="empty-state" id="emptyState">
+    「mdファイルを選択」からチェックリストのmdファイルを読み込んでください。
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  var state = {
+    fileBaseName: null,   // 拡張子・日付サフィックスを除いたベース名
+    sections: [],         // [{ title, items: [{name, date, assignee, result, note}] }]
+    storageKey: null
+  };
+
+  var els = {
+    loadBtn: document.getElementById("loadBtn"),
+    fileInput: document.getElementById("fileInput"),
+    fileNameLabel: document.getElementById("fileNameLabel"),
+    nameInput: document.getElementById("nameInput"),
+    applyNameBtn: document.getElementById("applyNameBtn"),
+    dateInput: document.getElementById("dateInput"),
+    applyDateBtn: document.getElementById("applyDateBtn"),
+    exportBtn: document.getElementById("exportBtn"),
+    main: document.getElementById("main"),
+    emptyState: document.getElementById("emptyState"),
+    statsBar: document.getElementById("statsBar"),
+    statTotal: document.getElementById("statTotal"),
+    statPending: document.getElementById("statPending"),
+    statDone: document.getElementById("statDone"),
+    statOk: document.getElementById("statOk"),
+    statNg: document.getElementById("statNg"),
+    statSkip: document.getElementById("statSkip")
+  };
+
+  var LAST_NAME_KEY = "checklistApp:lastAssigneeName";
+
+  // ---------- 起動時: 前回の実施者名を復元 ----------
+  try {
+    var lastName = localStorage.getItem(LAST_NAME_KEY);
+    if (lastName) els.nameInput.value = lastName;
+  } catch (e) { /* localStorage不可の環境は無視 */ }
+
+  els.nameInput.addEventListener("input", function () {
+    try { localStorage.setItem(LAST_NAME_KEY, els.nameInput.value); } catch (e) {}
+  });
+
+  // ---------- 実施日(共通)の初期値は今日の日付 ----------
+  els.dateInput.value = todayStr();
+
+  // ---------- 簡易ハッシュ(FNV-1a) ----------
+  function hashString(str) {
+    var h = 0x811c9dc5;
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = (h * 0x01000193) >>> 0;
+    }
+    return h.toString(16);
+  }
+
+  function todayStr() {
+    var d = new Date();
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, "0");
+    var day = String(d.getDate()).padStart(2, "0");
+    return y + "-" + m + "-" + day;
+  }
+
+  // ---------- Markdownテーブル行のパース ----------
+  function splitRow(line) {
+    var trimmed = line.trim();
+    if (trimmed.startsWith("|")) trimmed = trimmed.slice(1);
+    if (trimmed.endsWith("|")) trimmed = trimmed.slice(0, -1);
+    // "\|" でエスケープされたパイプは一旦プレースホルダに退避してから分割
+    var placeholder = " ESC_PIPE ";
+    var escaped = trimmed.replace(/\\\|/g, placeholder);
+    var cells = escaped.split("|").map(function (c) {
+      return c.replace(new RegExp(placeholder, "g"), "|").trim();
+    });
+    return cells;
+  }
+
+  function isTableRow(line) {
+    return line.trim().indexOf("|") !== -1 && line.trim().length > 0;
+  }
+
+  function isSeparatorRow(cells) {
+    return cells.every(function (c) {
+      return /^:?-+:?$/.test(c.trim());
+    });
+  }
+
+  // ---------- md全体をセクション/項目にパース ----------
+  function parseMarkdown(text) {
+    var lines = text.replace(/\r\n/g, "\n").split("\n");
+    var sections = [];
+    var current = null;
+    var i = 0;
+
+    while (i < lines.length) {
+      var line = lines[i];
+      var headingMatch = line.match(/^##\s+(.+?)\s*$/);
+      if (headingMatch) {
+        current = { title: headingMatch[1], items: [] };
+        sections.push(current);
+        i++;
+        continue;
+      }
+      if (current && isTableRow(line)) {
+        var header = splitRow(line);
+        i++;
+        // 区切り行をスキップ
+        if (i < lines.length && isTableRow(lines[i]) && isSeparatorRow(splitRow(lines[i]))) {
+          i++;
+        }
+        // 列の位置を特定
+        var idx = {
+          name: header.findIndex(function (h) { return h === "項目"; }),
+          date: header.findIndex(function (h) { return h === "日付"; }),
+          assignee: header.findIndex(function (h) { return h === "実施者" || h === "担当者"; }),
+          result: header.findIndex(function (h) { return h === "結果" || h === "OK/NG"; }),
+          note: header.findIndex(function (h) { return h === "備考" || h === "コメント"; })
+        };
+        if (idx.name === -1) idx.name = 0; // 見つからなければ先頭列を項目名とみなす
+
+        while (i < lines.length && isTableRow(lines[i])) {
+          var cells = splitRow(lines[i]);
+          var rawResultOriginal = idx.result !== -1 ? (cells[idx.result] || "").trim() : "";
+          var rawResult = rawResultOriginal.toUpperCase();
+          var result = "未実施";
+          if (rawResult === "OK") result = "OK";
+          else if (rawResult === "NG") result = "NG";
+          else if (rawResultOriginal === "スキップ" || rawResult === "SKIP") result = "スキップ";
+
+          current.items.push({
+            name: cells[idx.name] || "",
+            date: idx.date !== -1 ? (cells[idx.date] || "") : "",
+            assignee: idx.assignee !== -1 ? (cells[idx.assignee] || "") : "",
+            result: result,
+            note: idx.note !== -1 ? (cells[idx.note] || "") : "",
+            hasResultColumns: idx.result !== -1
+          });
+          i++;
+        }
+        continue;
+      }
+      i++;
+    }
+    return sections;
+  }
+
+  // ---------- 構造シグネチャ(項目名の並びのみ)からstorageKeyを生成 ----------
+  function computeStorageKey(sections) {
+    var sig = sections.map(function (s) {
+      return s.title + ":::" + s.items.map(function (it) { return it.name; }).join("||");
+    }).join("\n---\n");
+    return "checklistApp:data:" + hashString(sig);
+  }
+
+  function recordKey(sectionTitle, itemName, indexInSection) {
+    return sectionTitle + "|||" + itemName + "|||" + indexInSection;
+  }
+
+  // ---------- localStorage 読み書き ----------
+  function loadSavedRecords(storageKey) {
+    try {
+      var raw = localStorage.getItem(storageKey);
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function persist() {
+    if (!state.storageKey) return;
+    var records = {};
+    state.sections.forEach(function (sec) {
+      sec.items.forEach(function (it, idx) {
+        records[recordKey(sec.title, it.name, idx)] = {
+          date: it.date, assignee: it.assignee, result: it.result, note: it.note
+        };
+      });
+    });
+    try {
+      localStorage.setItem(state.storageKey, JSON.stringify({
+        fileBaseName: state.fileBaseName,
+        savedAt: new Date().toString(),
+        records: records
+      }));
+    } catch (e) { /* 保存できない環境は無視 */ }
+  }
+
+  // ---------- ファイル名の正規化 ----------
+  function baseNameFromFileName(name) {
+    var withoutExt = name.replace(/\.(md|markdown)$/i, "");
+    withoutExt = withoutExt.replace(/_\d{8}$/, ""); // 既存の日付サフィックスを除去
+    return withoutExt;
+  }
+
+  // ---------- 読み込み処理 ----------
+  function handleFile(file) {
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      var text = e.target.result;
+      var sections = parseMarkdown(text);
+
+      if (sections.length === 0 || sections.every(function (s) { return s.items.length === 0; })) {
+        alert("チェックリストとして認識できる内容が見つかりませんでした。「## 見出し」と「| 項目 |」形式の表を含むmdファイルを選択してください。");
+        return;
+      }
+
+      var hasResultColumns = sections.some(function (s) {
+        return s.items.some(function (it) { return it.hasResultColumns; });
+      });
+
+      state.fileBaseName = baseNameFromFileName(file.name);
+      state.sections = sections;
+      state.storageKey = computeStorageKey(sections);
+
+      if (hasResultColumns) {
+        // 結果列入りのmd(=エクスポート済みファイル)を読み込んだ場合は、その内容を正として復元し、
+        // 保存領域にもそのまま反映する(このファイルの内容を最新として扱う)
+        persist();
+      } else {
+        // オリジナルのチェックリストを読み込んだ場合、保存済みの進捗があれば再開するか確認する
+        var saved = loadSavedRecords(state.storageKey);
+        if (saved && saved.records) {
+          var resume = confirm(
+            "このチェックリストには保存済みの作業内容があります。\n" +
+            "OK: 続きから再開する\n" +
+            "キャンセル: 新規に開始する(保存内容は上書きされます)"
+          );
+          if (resume) {
+            state.sections.forEach(function (sec) {
+              sec.items.forEach(function (it, idx) {
+                var rec = saved.records[recordKey(sec.title, it.name, idx)];
+                if (rec) {
+                  it.date = rec.date || "";
+                  it.assignee = rec.assignee || "";
+                  it.result = rec.result || "未実施";
+                  it.note = rec.note || "";
+                }
+              });
+            });
+          }
+        }
+        persist();
+      }
+
+      els.fileNameLabel.textContent = "読込中: " + file.name;
+      els.exportBtn.disabled = false;
+      render();
+    };
+    reader.onerror = function () {
+      alert("ファイルの読み込みに失敗しました。");
+    };
+    reader.readAsText(file, "UTF-8");
+  }
+
+  els.loadBtn.addEventListener("click", function () {
+    els.fileInput.value = "";
+    els.fileInput.click();
+  });
+  els.fileInput.addEventListener("change", function (e) {
+    if (e.target.files && e.target.files[0]) handleFile(e.target.files[0]);
+  });
+
+  // ---------- 描画 ----------
+  function render() {
+    els.emptyState.style.display = "none";
+    // 既存のセクション要素を除去
+    Array.prototype.slice.call(els.main.querySelectorAll("section.checklist-section")).forEach(function (n) { n.remove(); });
+
+    state.sections.forEach(function (sec, secIdx) {
+      var secEl = document.createElement("section");
+      secEl.className = "checklist-section";
+
+      var h2 = document.createElement("h2");
+      h2.textContent = sec.title;
+      secEl.appendChild(h2);
+
+      sec.items.forEach(function (it, itemIdx) {
+        secEl.appendChild(renderItemRow(sec, secIdx, it, itemIdx));
+      });
+
+      els.main.appendChild(secEl);
+    });
+
+    updateStats();
+  }
+
+  // ---------- 集計(全体件数・未実施件数・実施済み件数・OK件数・NG件数・スキップ件数) ----------
+  function updateStats() {
+    var total = 0, ok = 0, ng = 0, skip = 0;
+    state.sections.forEach(function (sec) {
+      sec.items.forEach(function (it) {
+        total++;
+        if (it.result === "OK") ok++;
+        else if (it.result === "NG") ng++;
+        else if (it.result === "スキップ") skip++;
+      });
+    });
+    var done = ok + ng; // 「実施済み」は実際にテストを実行したOK/NGの合計(スキップは含まない)
+    var pending = total - (ok + ng + skip); // 「未実施」= 全体 - (OK+NG+スキップ)
+    els.statTotal.textContent = total;
+    els.statPending.textContent = pending;
+    els.statDone.textContent = done;
+    els.statOk.textContent = ok;
+    els.statNg.textContent = ng;
+    els.statSkip.textContent = skip;
+    els.statsBar.classList.toggle("visible", total > 0);
+  }
+
+  function setResult(it, rowEl, newResult, dateInput, assigneeInput) {
+    it.result = newResult;
+    rowEl.classList.remove("result-OK", "result-NG", "result-SKIP");
+    if (newResult === "OK") rowEl.classList.add("result-OK");
+    if (newResult === "NG") rowEl.classList.add("result-NG");
+    if (newResult === "スキップ") rowEl.classList.add("result-SKIP");
+
+    if (newResult === "OK" || newResult === "NG" || newResult === "スキップ") {
+      if (!it.date) {
+        it.date = els.dateInput.value || todayStr();
+        dateInput.value = it.date;
+      }
+      if (!it.assignee && els.nameInput.value.trim()) {
+        it.assignee = els.nameInput.value.trim();
+        assigneeInput.value = it.assignee;
+      }
+    }
+    persist();
+    updateStats();
+  }
+
+  function renderItemRow(sec, secIdx, it, itemIdx) {
+    var row = document.createElement("div");
+    row.className = "item-row";
+    if (it.result === "OK") row.classList.add("result-OK");
+    if (it.result === "NG") row.classList.add("result-NG");
+    if (it.result === "スキップ") row.classList.add("result-SKIP");
+
+    var nameEl = document.createElement("div");
+    nameEl.className = "item-name";
+    nameEl.textContent = it.name;
+    row.appendChild(nameEl);
+
+    // ラジオボタン群
+    var radioGroup = document.createElement("div");
+    radioGroup.className = "radio-group";
+    var groupName = "result_" + secIdx + "_" + itemIdx;
+
+    var dateInputRef;     // setResultから参照するため先に宣言(実体は後で代入)
+    var assigneeInputRef; // 同上
+
+    ["未実施", "OK", "NG", "スキップ"].forEach(function (val) {
+      var lbl = document.createElement("label");
+      var radio = document.createElement("input");
+      radio.type = "radio";
+      radio.name = groupName;
+      radio.value = val;
+      radio.checked = it.result === val;
+      radio.addEventListener("change", function () {
+        setResult(it, row, val, dateInputRef, assigneeInputRef);
+      });
+      lbl.appendChild(radio);
+      lbl.appendChild(document.createTextNode(val));
+      radioGroup.appendChild(lbl);
+    });
+    row.appendChild(radioGroup);
+
+    // メタ情報(日付・実施者)
+    var metaFields = document.createElement("div");
+    metaFields.className = "meta-fields";
+
+    var dateInput = document.createElement("input");
+    dateInput.type = "date";
+    dateInput.value = it.date || "";
+    dateInput.addEventListener("change", function () {
+      it.date = dateInput.value;
+      persist();
+    });
+    dateInputRef = dateInput;
+    metaFields.appendChild(dateInput);
+
+    var assigneeInput = document.createElement("input");
+    assigneeInput.type = "text";
+    assigneeInput.className = "assignee";
+    assigneeInput.placeholder = "実施者";
+    assigneeInput.value = it.assignee || "";
+    assigneeInput.addEventListener("input", function () {
+      it.assignee = assigneeInput.value;
+      persist();
+    });
+    assigneeInputRef = assigneeInput;
+    metaFields.appendChild(assigneeInput);
+
+    row.appendChild(metaFields);
+
+    // 備考欄
+    var noteField = document.createElement("div");
+    noteField.className = "note-field";
+    var noteInput = document.createElement("input");
+    noteInput.type = "text";
+    noteInput.placeholder = "備考(任意)";
+    noteInput.value = it.note || "";
+    noteInput.addEventListener("input", function () {
+      it.note = noteInput.value;
+      persist();
+    });
+    noteField.appendChild(noteInput);
+    row.appendChild(noteField);
+
+    return row;
+  }
+
+  // ---------- 実施者名を全項目に適用 ----------
+  els.applyNameBtn.addEventListener("click", function () {
+    var name = els.nameInput.value.trim();
+    if (!name) return;
+    if (state.sections.length === 0) return;
+    var overwrite = confirm(
+      "実施者名「" + name + "」を全項目に適用します。\n" +
+      "OK: 既に入力済みの項目も含めて全て上書き\n" +
+      "キャンセル: 未入力の項目のみ適用"
+    );
+    state.sections.forEach(function (sec) {
+      sec.items.forEach(function (it) {
+        if (overwrite || !it.assignee) it.assignee = name;
+      });
+    });
+    persist();
+    render();
+  });
+
+  // ---------- 実施日を全項目に適用 ----------
+  els.applyDateBtn.addEventListener("click", function () {
+    var date = els.dateInput.value;
+    if (!date) return;
+    if (state.sections.length === 0) return;
+    var overwrite = confirm(
+      "実施日「" + date + "」を全項目に適用します。\n" +
+      "OK: 既に入力済みの項目も含めて全て上書き\n" +
+      "キャンセル: 未入力の項目のみ適用"
+    );
+    state.sections.forEach(function (sec) {
+      sec.items.forEach(function (it) {
+        if (overwrite || !it.date) it.date = date;
+      });
+    });
+    persist();
+    render();
+  });
+
+  // ---------- エクスポート ----------
+  function escapeCell(text) {
+    return String(text || "").replace(/\|/g, "\\|").replace(/\r?\n/g, " ").trim();
+  }
+
+  function buildExportMarkdown() {
+    var lines = [];
+    state.sections.forEach(function (sec) {
+      lines.push("## " + sec.title);
+      lines.push("");
+      lines.push("| 項目 | 日付 | 実施者 | 結果 | 備考 |");
+      lines.push("| --- | --- | --- | --- | --- |");
+      sec.items.forEach(function (it) {
+        var resultCell = it.result === "未実施" ? "" : it.result;
+        lines.push(
+          "| " + escapeCell(it.name) +
+          " | " + escapeCell(it.date) +
+          " | " + escapeCell(it.assignee) +
+          " | " + escapeCell(resultCell) +
+          " | " + escapeCell(it.note) + " |"
+        );
+      });
+      lines.push("");
+    });
+    return lines.join("\n");
+  }
+
+  els.exportBtn.addEventListener("click", function () {
+    if (state.sections.length === 0) return;
+    var md = buildExportMarkdown();
+    var blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = (state.fileBaseName || "checklist") + "_" + todayStr() + ".md";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  });
+
+})();
+</script>
+</body>
+</html>
